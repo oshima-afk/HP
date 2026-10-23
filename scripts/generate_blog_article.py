@@ -156,7 +156,7 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
     imgs_html = ""
     for img in image_files:
         imgs_html += (
-            f'<div class="ph-slot" style="aspect-ratio: 4 / 3; border-radius: var(--radius-md); overflow: hidden;">'
+            f'<div class="ph-slot" style="position: static; aspect-ratio: 4 / 3; border-radius: var(--radius-md); overflow: hidden;">'
             f'<img src="images/{html.escape(img)}" alt="施工の様子" style="width:100%;height:100%;object-fit:cover;display:block;"></div>\n        '
         )
     body_html = "\n        ".join(f"<p style=\"margin:0 0 1.4em; line-height:2;\">{html.escape(p)}</p>" for p in body_paragraphs)
@@ -217,7 +217,7 @@ def build_index_html(items):
         cards += (
             '<a href="{slug}.html" style="display:block; text-decoration:none; color:var(--color-text); '
             'border:1px solid var(--color-divider); border-radius:var(--radius-md); overflow:hidden;">'
-            '<div class="ph-slot" style="aspect-ratio:16/10;"><img src="images/{thumb}" alt="" '
+            '<div class="ph-slot" style="position:static; aspect-ratio:16/10;"><img src="images/{thumb}" alt="" '
             'style="width:100%;height:100%;object-fit:cover;display:block;"></div>'
             '<div style="padding:14px 16px;">'
             '<p style="margin:0 0 6px; font-size:11.5px; letter-spacing:0.08em; color:var(--color-neutral-600);">{date}</p>'
