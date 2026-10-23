@@ -52,6 +52,44 @@ def redact(text, job):
             redactions.append(p)
     return out, redactions
 
+    return out, redactions
+
+
+WORK_INTROS = {
+    "壁塗り": "外壁の塗り替えは、建物を雨風や紫外線から守るだけでなく、街並みの印象も大きく変える大切な工事です。",
+    "外壁塗装": "外壁の塗り替えは、建物を雨風や紫外線から守るだけでなく、街並みの印象も大きく変える大切な工事です。",
+    "屋根塗装": "屋根の塗装は、普段なかなか目にする機会がない分、劣化に気づきにくい箇所のひとつです。",
+    "屋根工事": "屋根まわりの工事は、普段なかなか目にする機会がない分、劣化に気づきにくい箇所のひとつです。",
+    "大規模修繕": "大規模修繕は、建物全体の資産価値を長く保つために欠かせない工事です。",
+    "防水工事": "防水工事は、雨漏りを未然に防ぎ、建物の寿命を延ばすうえで欠かせない工事です。",
+}
+DEFAULT_INTRO = "住まいを長く大切に使っていただけるよう、今回も一つひとつの工程を丁寧に進めました。"
+
+
+def pick_intro(work):
+    for key, text in WORK_INTROS.items():
+        if key and key in work:
+            return text
+    return DEFAULT_INTRO
+
+
+def build_body_paragraphs(job, memo):
+    """案件データから複数段落の本文を組み立てる(テンプレートベースの自動生成)。"""
+    work = job.get("work") or "塗装工事"
+    city = job["city"]
+    staff = job["staff"]
+    start = job["start"]
+    end = job["end"]
+
+    p1 = pick_intro(work)
+    p2 = f"今回は{city}エリアにて{work}を行いました。担当は{staff}で、工期は{start}から{end}までです。"
+    p3 = "下地の状態を見極めながら、一つひとつの工程に手を抜かず仕上げることを心がけています。"
+    closing = (
+        f"大嶋塗装株式会社では、{city}エリアを中心に、下地処理から仕上げまでこだわった"
+        "塗装・修繕工事を行っております。気になる箇所がございましたら、お気軽にお問合せください。"
+    )
+    return [p1, p2, p3, closing]
+
 
 def find_job_folder(job, experiment_root):
     """撮影ガイド機能で作成される案件フォルダ(例: 01_大嶋俊介様邸)を探す。"""
@@ -250,10 +288,7 @@ def main():
     title = f"施工事例：{job['city']}エリアの{work}"
     title, redacted_title = redact(title, job)
 
-    body_paragraphs = [
-        f"{job['city']}エリアにて{work}を行いました。担当は{job['staff']}です。",
-        f"工期は{job['start']}〜{job['end']}でした。",
-    ]
+    body_paragraphs = build_body_paragraphs(job, memo)
     clean_paragraphs = []
     all_redactions = list(redacted_title)
     for p in body_paragraphs:
