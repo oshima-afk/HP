@@ -83,31 +83,35 @@ def format_date_jp(date_str):
 
 
 def build_body_paragraphs(job, memo):
-    """案件データから複数段落の本文を組み立てる(テンプレートベースの自動生成)。"""
+    """案件データから、親しみやすいブログ口調の本文を組み立てる(テンプレートベースの自動生成)。"""
     work = job.get("work") or "塗装工事"
     city = job["city"]
     staff = job["staff"]
     start = format_date_jp(job["start"])
     end = format_date_jp(job["end"])
 
-    p1 = pick_intro(work)
-    p2 = f"今回は{city}エリアにて{work}を行いました。工期は{start}から{end}までで、担当は{staff}が務めました。"
-    p3 = "下地の状態を一つひとつ見極めながら、工程を飛ばすことなく丁寧に仕上げることを心がけています。"
-    closing = (
-        f"大嶋塗装株式会社では、{city}エリアを中心に、下地処理から仕上げまでこだわった"
-        "塗装・修繕工事を行っております。気になる箇所がございましたら、お気軽にお問合せください。"
-    )
-    return [p1, p2, p3, closing]
+    p1 = "みなさまこんにちは！"
+    p2 = f"{start}から{end}にかけて、{city}にて{work}を行いました。"
+    p3 = f"担当は{staff}。一つひとつの工程を丁寧に進めながら、気持ちよく仕上げることができました♪"
+    p4 = "ご依頼くださり、本当にありがとうございました！"
+    p5 = "今後ともよろしくお願いいたしますm(__)m"
+
+    paragraphs = [p1, p2, p3]
+    memo_line = quote_field_memo(memo)
+    if memo_line:
+        paragraphs.append(memo_line)
+    paragraphs += [p4, p5]
+    return paragraphs
 
 
 def quote_field_memo(memo):
-    """現場メモの内容は書き換えず、引用として自然な一文に整える。"""
+    """現場メモの内容は書き換えず、親しみやすい一文に整える。"""
     memo = (memo or "").strip()
     if not memo:
         return ""
     if not memo.endswith(("。", "！", "？")):
         memo += "。"
-    return f"現場担当者からは、「{memo}」との報告が届いています。"
+    return f"現場では、「{memo}」とのことでした。"
 
 
 def find_job_folder(job, experiment_root):
@@ -315,12 +319,8 @@ def main():
         clean_paragraphs.append(clean)
         all_redactions += red
 
-    clean_memo, red_memo = redact(memo, job)
-    all_redactions += red_memo
-    memo_sentence = quote_field_memo(clean_memo)
-
     slug = f"{job['no'].zfill(2)}-{job['end']}"
-    article_html = build_article_html(job, memo_sentence, copied, title, clean_paragraphs)
+    article_html = build_article_html(job, "", copied, title, clean_paragraphs)
     with open(os.path.join(BLOG_DIR, f"{slug}.html"), "w", encoding="utf-8") as f:
         f.write(article_html)
 
