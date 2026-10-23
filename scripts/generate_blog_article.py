@@ -73,22 +73,41 @@ def pick_intro(work):
     return DEFAULT_INTRO
 
 
+def format_date_jp(date_str):
+    """'2026-10-30' のようなISO形式の日付を '2026年10月30日' に整える。"""
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", (date_str or "").strip())
+    if not m:
+        return date_str
+    y, mo, d = m.groups()
+    return f"{y}年{int(mo)}月{int(d)}日"
+
+
 def build_body_paragraphs(job, memo):
     """案件データから複数段落の本文を組み立てる(テンプレートベースの自動生成)。"""
     work = job.get("work") or "塗装工事"
     city = job["city"]
     staff = job["staff"]
-    start = job["start"]
-    end = job["end"]
+    start = format_date_jp(job["start"])
+    end = format_date_jp(job["end"])
 
     p1 = pick_intro(work)
-    p2 = f"今回は{city}エリアにて{work}を行いました。担当は{staff}で、工期は{start}から{end}までです。"
-    p3 = "下地の状態を見極めながら、一つひとつの工程に手を抜かず仕上げることを心がけています。"
+    p2 = f"今回は{city}エリアにて{work}を行いました。工期は{start}から{end}までで、担当は{staff}が務めました。"
+    p3 = "下地の状態を一つひとつ見極めながら、工程を飛ばすことなく丁寧に仕上げることを心がけています。"
     closing = (
         f"大嶋塗装株式会社では、{city}エリアを中心に、下地処理から仕上げまでこだわった"
         "塗装・修繕工事を行っております。気になる箇所がございましたら、お気軽にお問合せください。"
     )
     return [p1, p2, p3, closing]
+
+
+def quote_field_memo(memo):
+    """現場メモの内容は書き換えず、引用として自然な一文に整える。"""
+    memo = (memo or "").strip()
+    if not memo:
+        return ""
+    if not memo.endswith(("。", "！", "？")):
+        memo += "。"
+    return f"現場担当者からは、「{memo}」との報告が届いています。"
 
 
 def find_job_folder(job, experiment_root):
@@ -127,7 +146,7 @@ def clean_and_copy_photo(src, dst):
     img.save(dst, "JPEG", quality=92, exif=b"")
 
 
-def build_article_html(job, memo, image_files, title, body_paragraphs):
+def build_article_html(job, memo_sentence, image_files, title, body_paragraphs):
     nav_header = NAV_HEADER
     footer = FOOTER
     imgs_html = ""
@@ -138,8 +157,8 @@ def build_article_html(job, memo, image_files, title, body_paragraphs):
         )
     body_html = "\n        ".join(f"<p style=\"margin:0 0 1.4em; line-height:2;\">{html.escape(p)}</p>" for p in body_paragraphs)
     memo_html = ""
-    if memo:
-        memo_html = f'<p style="margin: 1.6em 0 0; padding: 16px; background: var(--color-accent-100); border-radius: var(--radius-md); line-height:1.9;">現場より: {html.escape(memo)}</p>'
+    if memo_sentence:
+        memo_html = f'<p style="margin: 1.6em 0 0; padding: 16px; background: var(--color-accent-100); border-radius: var(--radius-md); line-height:1.9;">{html.escape(memo_sentence)}</p>'
 
     return f"""<!DOCTYPE html>
 <html lang="ja">
@@ -298,9 +317,10 @@ def main():
 
     clean_memo, red_memo = redact(memo, job)
     all_redactions += red_memo
+    memo_sentence = quote_field_memo(clean_memo)
 
     slug = f"{job['no'].zfill(2)}-{job['end']}"
-    article_html = build_article_html(job, clean_memo, copied, title, clean_paragraphs)
+    article_html = build_article_html(job, memo_sentence, copied, title, clean_paragraphs)
     with open(os.path.join(BLOG_DIR, f"{slug}.html"), "w", encoding="utf-8") as f:
         f.write(article_html)
 
