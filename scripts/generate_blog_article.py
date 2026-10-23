@@ -150,7 +150,7 @@ def clean_and_copy_photo(src, dst):
     img.save(dst, "JPEG", quality=92, exif=b"")
 
 
-def build_article_html(job, memo_sentence, image_files, title, body_paragraphs):
+def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, city_caption):
     nav_header = NAV_HEADER
     footer = FOOTER
     imgs_html = ""
@@ -190,9 +190,10 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs):
   <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 760px; margin: 0 auto;">
     <p style="margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; color: var(--color-neutral-600);"><a href="index.html" style="color: var(--color-neutral-600);">ブログ</a> / 施工事例</p>
     <h1 style="font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.06em; margin: 0 0 24px;">{html.escape(title)}</h1>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; margin-bottom: 28px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; margin-bottom: 12px;">
         {imgs_html}
     </div>
+    <p style="margin: 0 0 24px; font-size: 13px; letter-spacing: 0.08em; color: var(--color-neutral-600);">{html.escape(city_caption)}</p>
     {body_html}
     {memo_html}
   </section>
@@ -320,7 +321,8 @@ def main():
         all_redactions += red
 
     slug = f"{job['no'].zfill(2)}-{job['end']}"
-    article_html = build_article_html(job, "", copied, title, clean_paragraphs)
+    city_caption = f"施工エリア：{job['city']}"
+    article_html = build_article_html(job, "", copied, title, clean_paragraphs, city_caption)
     with open(os.path.join(BLOG_DIR, f"{slug}.html"), "w", encoding="utf-8") as f:
         f.write(article_html)
 
