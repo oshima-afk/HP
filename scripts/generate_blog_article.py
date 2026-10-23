@@ -5,6 +5,8 @@
 
 安全策: 本文・タイトルに「お客様氏名(苗字+名前)」「市+番地の組み合わせ」が
 そのまま出てきた場合は自動的に伏字にする(人が確認する代わりの機械的なブロック)。
+写真は「Claude 実験用」フォルダ内の当該案件フォルダから実写真を探し、
+Exif(位置情報含む)を除去して書き出す。見つからない場合のみデモ画像で代用する。
 """
 import html
 import json
@@ -13,7 +15,7 @@ import re
 import shutil
 import sys
 
-REPO = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BLOG_DIR = os.path.join(REPO, "blog")
 IMAGES_DIR = os.path.join(BLOG_DIR, "images")
 MANIFEST = os.path.join(BLOG_DIR, "articles.json")
@@ -49,6 +51,42 @@ def redact(text, job):
             out = out.replace(p, "〇" * len(p))
             redactions.append(p)
     return out, redactions
+
+
+def find_job_folder(job, experiment_root):
+    """撮影ガイド機能で作成される案件フォルダ(例: 01_大嶋俊介様邸)を探す。"""
+    if not experiment_root or not os.path.isdir(experiment_root):
+        return None
+    folder_name = f"{job['no'].zfill(2)}_{job['last']}{job['first']}様邸"
+    path = os.path.join(experiment_root, folder_name)
+    return path if os.path.isdir(path) else None
+
+
+def collect_real_photos(job, experiment_root):
+    """案件フォルダ配下(日付サブフォルダ含む)の画像ファイルを全て集める。"""
+    folder = find_job_folder(job, experiment_root)
+    if not folder:
+        return []
+    photos = []
+    for root, dirs, files in os.walk(folder):
+        for fn in sorted(files):
+            if fn.lower().endswith((".jpg", ".jpeg", ".png")):
+                photos.append(os.path.join(root, fn))
+    return photos
+
+
+def clean_and_copy_photo(src, dst):
+    """Exif(位置情報含む)を一切付与せずJPEGとして書き出す。"""
+    from PIL import Image
+    img = Image.open(src)
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        img = img.convert("RGBA")
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[-1])
+        img = bg
+    else:
+        img = img.convert("RGB")
+    img.save(dst, "JPEG", quality=92, exif=b"")
 
 
 def build_article_html(job, memo, image_files, title, body_paragraphs):
@@ -182,21 +220,31 @@ FOOTER = """  <footer style="border-top: 1px solid var(--color-divider); backgro
 
 def main():
     job_path, memo, out_root = sys.argv[1], sys.argv[2], sys.argv[3]
+    experiment_root = sys.argv[4] if len(sys.argv) > 4 else None
     with open(job_path, encoding="utf-8") as f:
         job = json.load(f)
 
     os.makedirs(IMAGES_DIR, exist_ok=True)
 
-    # --- demo用の写真(実写真が無いため、既存の実験フォルダのサンプル画像を使う) ---
-    src_images_dir = out_root
-    src_files = ["sns_square_1080x1080.jpg", "sns_beforeafter_1080x1080.jpg"]
     copied = []
-    for fn in src_files:
-        src = os.path.join(src_images_dir, fn)
-        if os.path.exists(src):
-            dst_name = f"{job['no'].zfill(2)}-{fn}"
-            shutil.copy(src, os.path.join(IMAGES_DIR, dst_name))
+    real_photos = collect_real_photos(job, experiment_root) if experiment_root else []
+    if real_photos:
+        for i, src in enumerate(real_photos, start=1):
+            dst_name = f"{job['no'].zfill(2)}-photo{i}.jpg"
+            clean_and_copy_photo(src, os.path.join(IMAGES_DIR, dst_name))
             copied.append(dst_name)
+        print(f"[photos] real photo(s) used: {len(copied)} (from {find_job_folder(job, experiment_root)})")
+    else:
+        # フォールバック: 実写真が見つからない場合のみ、以前の実験フォルダのサンプル画像を使う
+        src_images_dir = out_root
+        src_files = ["sns_square_1080x1080.jpg", "sns_beforeafter_1080x1080.jpg"]
+        for fn in src_files:
+            src = os.path.join(src_images_dir, fn)
+            if os.path.exists(src):
+                dst_name = f"{job['no'].zfill(2)}-{fn}"
+                shutil.copy(src, os.path.join(IMAGES_DIR, dst_name))
+                copied.append(dst_name)
+        print("[photos] no real photos found; used demo images as fallback")
 
     work = job.get("work") or "塗装工事"
     title = f"施工事例：{job['city']}エリアの{work}"
