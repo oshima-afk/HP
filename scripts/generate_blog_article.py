@@ -224,8 +224,9 @@ def build_index_html(items):
     cards = ""
     for item in sorted(items, key=lambda x: x["date"], reverse=True):
         category = item.get("category") or "施工事例"
+        region = item.get("region") or ""
         cards += (
-            '<a href="{slug}.html" data-category="{category_attr}" class="blog-card" '
+            '<a href="{slug}.html" data-category="{category_attr}" data-region="{region_attr}" class="blog-card" '
             'style="display:block; text-decoration:none; color:var(--color-text); '
             'border:1px solid var(--color-divider); border-radius:var(--radius-md); overflow:hidden;">'
             '<div class="ph-slot" style="position:static; aspect-ratio:16/10;"><img src="images/{thumb}" alt="" '
@@ -238,17 +239,35 @@ def build_index_html(items):
         ).format(
             slug=item["slug"], thumb=item["thumb"], date=item["date"],
             title=html.escape(item["title"]), category=html.escape(category),
-            category_attr=html.escape(category),
+            category_attr=html.escape(category), region_attr=html.escape(region),
         )
 
-    filter_buttons = '<button type="button" class="blog-filter-btn is-active" data-filter="all" onclick="filterBlog(this, \'all\')" style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:var(--color-accent); color:#fff; font-size:13px; cursor:pointer;">\u3059\u3079\u3066</button>\n        '
+    filter_buttons = '<button type="button" class="blog-filter-btn is-active" data-filter="all" onclick="filterBlog(this, \'category\', \'all\')" style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:var(--color-accent); color:#fff; font-size:13px; cursor:pointer;">\u3059\u3079\u3066</button>\n        '
     for cat in CATEGORIES:
         filter_buttons += (
-            '<button type="button" class="blog-filter-btn" data-filter="{cat}" onclick="filterBlog(this, \'{cat}\')" '
+            '<button type="button" class="blog-filter-btn" data-filter="{cat}" onclick="filterBlog(this, \'category\', \'{cat}\')" '
             'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{cat}</button>\n        '
         ).format(cat=html.escape(cat))
 
-    meta_desc = "大嶋塗装株式会社の施工事例です。" if category == "施工事例" else f"大嶋塗装株式会社の{category}の記事です。"
+    regions = sorted({item.get("region") for item in items if item.get("category") == "施工事例" and item.get("region")})
+    region_buttons = ""
+    for region in regions:
+        region_buttons += (
+            '<button type="button" class="blog-filter-btn" data-filter-region="{region}" onclick="filterBlog(this, \'region\', \'{region}\')" '
+            'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{region}</button>\n        '
+        ).format(region=html.escape(region))
+
+    if region_buttons:
+        region_row = (
+            '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:24px;">'
+            '<span style="font-size:12px; color:var(--color-neutral-600); letter-spacing:0.08em;">地域から探す：</span>'
+            f'{region_buttons}'
+            '</div>'
+        )
+        region_row_margin = "12px"
+    else:
+        region_row = ""
+        region_row_margin = "24px"
 
     return f"""<!DOCTYPE html>
 <html lang="ja">
@@ -275,9 +294,10 @@ def build_index_html(items):
 {NAV_HEADER}
   <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 1000px; margin: 0 auto;">
     <h1 style="font-size: clamp(26px, 3.8vw, 38px); letter-spacing: 0.1em; margin: 0 0 28px;">施工ブログ</h1>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px;">
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:{region_row_margin};">
         {filter_buttons}
     </div>
+    {region_row}
     <div id="blog-card-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:20px;">
         {cards if cards else '<p>まだ記事がありません。</p>'}
     </div>
@@ -285,7 +305,7 @@ def build_index_html(items):
   </section>
 {FOOTER}
 <script>
-function filterBlog(btn, cat) {{
+function filterBlog(btn, group, value) {{
   document.querySelectorAll('.blog-filter-btn').forEach(function(b) {{
     b.classList.remove('is-active');
     b.style.background = 'transparent';
@@ -296,7 +316,12 @@ function filterBlog(btn, cat) {{
   btn.style.color = '#fff';
   var any = false;
   document.querySelectorAll('.blog-card').forEach(function(card) {{
-    var show = (cat === 'all' || card.getAttribute('data-category') === cat);
+    var show;
+    if (group === 'category') {{
+      show = (value === 'all' || card.getAttribute('data-category') === value);
+    }} else {{
+      show = (card.getAttribute('data-region') === value);
+    }}
     card.style.display = show ? '' : 'none';
     if (show) any = true;
   }});
@@ -382,6 +407,7 @@ def main():
         "date": job["end"],
         "thumb": copied[0] if copied else "",
         "category": "施工事例",
+        "region": job["city"],
     })
     save_manifest(items)
 
