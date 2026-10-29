@@ -217,7 +217,7 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
 """
 
 
-CATEGORIES = ["施工事例", "ボランティア活動", "社員の日常"]
+CATEGORIES = ["施工事例", "ボランティア活動", "社員の日常", "表彰"]
 
 
 def build_index_html(items):
