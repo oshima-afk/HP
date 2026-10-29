@@ -150,7 +150,7 @@ def clean_and_copy_photo(src, dst):
     img.save(dst, "JPEG", quality=92, exif=b"")
 
 
-def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, city_caption):
+def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, city_caption, category="施工事例"):
     nav_header = NAV_HEADER
     footer = FOOTER
     imgs_html = ""
@@ -160,6 +160,9 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
             f'<img src="images/{html.escape(img)}" alt="施工の様子" style="width:100%;height:100%;object-fit:cover;display:block;"></div>\n        '
         )
     body_html = "\n        ".join(f"<p style=\"margin:0 0 1.4em; line-height:2;\">{html.escape(p)}</p>" for p in body_paragraphs)
+    caption_html = ""
+    if city_caption:
+        caption_html = f'<p style="margin: 0 0 24px; font-size: 13px; letter-spacing: 0.08em; color: var(--color-neutral-600);">{html.escape(city_caption)}</p>'
     memo_html = ""
     if memo_sentence:
         memo_html = f'<p style="margin: 1.6em 0 0; padding: 16px; background: var(--color-accent-100); border-radius: var(--radius-md); line-height:1.9;">{html.escape(memo_sentence)}</p>'
@@ -188,12 +191,12 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
 <div style="background: var(--color-bg); color: var(--color-text); min-height: 100%;">
 {nav_header}
   <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 760px; margin: 0 auto;">
-    <p style="margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; color: var(--color-neutral-600);"><a href="index.html" style="color: var(--color-neutral-600);">ブログ</a> / 施工事例</p>
+    <p style="margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; color: var(--color-neutral-600);"><a href="index.html" style="color: var(--color-neutral-600);">ブログ</a> / {html.escape(category)}</p>
     <h1 style="font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.06em; margin: 0 0 24px;">{html.escape(title)}</h1>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 190px)); gap: 12px; margin-bottom: 12px; justify-content: start;">
         {imgs_html}
     </div>
-    <p style="margin: 0 0 24px; font-size: 13px; letter-spacing: 0.08em; color: var(--color-neutral-600);">{html.escape(city_caption)}</p>
+    {caption_html}
     {body_html}
     {memo_html}
   </section>
@@ -211,19 +214,36 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
 """
 
 
+CATEGORIES = ["施工事例", "ボランティア活動", "社員の日常"]
+
+
 def build_index_html(items):
     cards = ""
     for item in sorted(items, key=lambda x: x["date"], reverse=True):
+        category = item.get("category") or "施工事例"
         cards += (
-            '<a href="{slug}.html" style="display:block; text-decoration:none; color:var(--color-text); '
+            '<a href="{slug}.html" data-category="{category_attr}" class="blog-card" '
+            'style="display:block; text-decoration:none; color:var(--color-text); '
             'border:1px solid var(--color-divider); border-radius:var(--radius-md); overflow:hidden;">'
             '<div class="ph-slot" style="position:static; aspect-ratio:16/10;"><img src="images/{thumb}" alt="" '
             'style="width:100%;height:100%;object-fit:cover;display:block;"></div>'
             '<div style="padding:14px 16px;">'
+            '<p style="margin:0 0 6px; font-size:11px; letter-spacing:0.08em; color:var(--color-accent-700);">{category}</p>'
             '<p style="margin:0 0 6px; font-size:11.5px; letter-spacing:0.08em; color:var(--color-neutral-600);">{date}</p>'
             '<p style="margin:0; font-size:15px; letter-spacing:0.04em;">{title}</p>'
             '</div></a>\n        '
-        ).format(slug=item["slug"], thumb=item["thumb"], date=item["date"], title=html.escape(item["title"]))
+        ).format(
+            slug=item["slug"], thumb=item["thumb"], date=item["date"],
+            title=html.escape(item["title"]), category=html.escape(category),
+            category_attr=html.escape(category),
+        )
+
+    filter_buttons = '<button type="button" class="blog-filter-btn is-active" data-filter="all" onclick="filterBlog(this, \'all\')" style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:var(--color-accent); color:#fff; font-size:13px; cursor:pointer;">\u3059\u3079\u3066</button>\n        '
+    for cat in CATEGORIES:
+        filter_buttons += (
+            '<button type="button" class="blog-filter-btn" data-filter="{cat}" onclick="filterBlog(this, \'{cat}\')" '
+            'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{cat}</button>\n        '
+        ).format(cat=html.escape(cat))
 
     return f"""<!DOCTYPE html>
 <html lang="ja">
@@ -250,11 +270,34 @@ def build_index_html(items):
 {NAV_HEADER}
   <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 1000px; margin: 0 auto;">
     <h1 style="font-size: clamp(26px, 3.8vw, 38px); letter-spacing: 0.1em; margin: 0 0 28px;">施工ブログ</h1>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:20px;">
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px;">
+        {filter_buttons}
+    </div>
+    <div id="blog-card-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:20px;">
         {cards if cards else '<p>まだ記事がありません。</p>'}
     </div>
+    <p id="blog-empty-msg" style="display:none; color:var(--color-neutral-600); margin-top:20px;">このカテゴリの記事はまだありません。</p>
   </section>
 {FOOTER}
+<script>
+function filterBlog(btn, cat) {{
+  document.querySelectorAll('.blog-filter-btn').forEach(function(b) {{
+    b.classList.remove('is-active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--color-text)';
+  }});
+  btn.classList.add('is-active');
+  btn.style.background = 'var(--color-accent)';
+  btn.style.color = '#fff';
+  var any = false;
+  document.querySelectorAll('.blog-card').forEach(function(card) {{
+    var show = (cat === 'all' || card.getAttribute('data-category') === cat);
+    card.style.display = show ? '' : 'none';
+    if (show) any = true;
+  }});
+  document.getElementById('blog-empty-msg').style.display = any ? 'none' : 'block';
+}}
+</script>
 </div>
 <script src="../assets/site.js"></script>
 </body>
@@ -333,6 +376,7 @@ def main():
         "title": title,
         "date": job["end"],
         "thumb": copied[0] if copied else "",
+        "category": "施工事例",
     })
     save_manifest(items)
 
