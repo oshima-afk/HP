@@ -153,11 +153,12 @@ def clean_and_copy_photo(src, dst):
 def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, city_caption, category="施工事例"):
     nav_header = NAV_HEADER
     footer = FOOTER
+    alt_text = "施工の様子" if category == "施工事例" else f"{category}の様子"
     imgs_html = ""
     for img in image_files:
         imgs_html += (
             f'<div class="ph-slot" style="position: static; aspect-ratio: 4 / 3; border-radius: var(--radius-md); overflow: hidden;">'
-            f'<img src="images/{html.escape(img)}" alt="施工の様子" style="width:100%;height:100%;object-fit:cover;display:block;"></div>\n        '
+            f'<img src="images/{html.escape(img)}" alt="{html.escape(alt_text)}" style="width:100%;height:100%;object-fit:cover;display:block;"></div>\n        '
         )
     body_html = "\n        ".join(f"<p style=\"margin:0 0 1.4em; line-height:2;\">{html.escape(p)}</p>" for p in body_paragraphs)
     caption_html = ""
@@ -167,13 +168,15 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
     if memo_sentence:
         memo_html = f'<p style="margin: 1.6em 0 0; padding: 16px; background: var(--color-accent-100); border-radius: var(--radius-md); line-height:1.9;">{html.escape(memo_sentence)}</p>'
 
+    meta_desc = "大嶋塗装株式会社の施工事例です。" if category == "施工事例" else f"大嶋塗装株式会社の{category}の記事です。"
+
     return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}｜大嶋塗装株式会社</title>
-<meta name="description" content="大嶋塗装株式会社の施工事例です。">
+<meta name="description" content="{meta_desc}">
 <link rel="stylesheet" href="../assets/styles.css">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -244,6 +247,8 @@ def build_index_html(items):
             '<button type="button" class="blog-filter-btn" data-filter="{cat}" onclick="filterBlog(this, \'{cat}\')" '
             'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{cat}</button>\n        '
         ).format(cat=html.escape(cat))
+
+    meta_desc = "大嶋塗装株式会社の施工事例です。" if category == "施工事例" else f"大嶋塗装株式会社の{category}の記事です。"
 
     return f"""<!DOCTYPE html>
 <html lang="ja">
