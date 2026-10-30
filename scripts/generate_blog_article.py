@@ -249,7 +249,7 @@ def build_index_html(items):
             'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{cat}</button>\n        '
         ).format(cat=html.escape(cat))
 
-    regions = sorted({item.get("region") for item in items if item.get("category") == "施工事例" and item.get("region")})
+    regions = sorted({item.get("region") for item in items if item.get("region")})
     region_buttons = ""
     for region in regions:
         region_buttons += (

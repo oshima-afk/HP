@@ -5,9 +5,11 @@
 チェックは行わない(お客様情報を扱わない記事のため)ので、内容は投稿前に目を通すこと。
 
 使い方:
-  python3 add_manual_post.py <category> <title> <date YYYY-MM-DD> <body_text_file> [photo1 photo2 ...]
+  python3 add_manual_post.py <category> <title> <date YYYY-MM-DD> <body_text_file> [--region 地域名] [photo1 photo2 ...]
 
 body_text_file は、段落ごとに空行区切りで書いたテキストファイル。
+--region を指定すると、写真の下に「エリア：<地域名>」と表示され、ブログ一覧の
+「地域から探す」フィルタにもそのカテゴリの記事が出るようになる(省略可)。
 """
 import html
 import json
@@ -19,12 +21,22 @@ import generate_blog_article as gen
 
 
 def main():
-    if len(sys.argv) < 5:
-        print("usage: add_manual_post.py <category> <title> <date> <body_text_file> [photos...]")
+    args = sys.argv[1:]
+    region = ""
+    if "--region" in args:
+        idx = args.index("--region")
+        if idx + 1 >= len(args):
+            print("usage: --region の後に地域名を指定してください")
+            sys.exit(1)
+        region = args[idx + 1]
+        args = args[:idx] + args[idx + 2:]
+
+    if len(args) < 4:
+        print("usage: add_manual_post.py <category> <title> <date> <body_text_file> [--region 地域名] [photos...]")
         sys.exit(1)
 
-    category, title, date, body_path = sys.argv[1:5]
-    photo_paths = sys.argv[5:]
+    category, title, date, body_path = args[0:4]
+    photo_paths = args[4:]
 
     with open(body_path, encoding="utf-8") as f:
         raw = f.read()
@@ -45,8 +57,9 @@ def main():
         gen.clean_and_copy_photo(src, os.path.join(gen.IMAGES_DIR, dst_name))
         copied.append(dst_name)
 
+    area_caption = f"エリア：{region}" if region else ""
     article_html = gen.build_article_html(
-        None, "", copied, title, paragraphs, "", category=category,
+        None, "", copied, title, paragraphs, area_caption, category=category,
     )
     with open(os.path.join(gen.BLOG_DIR, f"{slug}.html"), "w", encoding="utf-8") as f:
         f.write(article_html)
@@ -58,6 +71,7 @@ def main():
         "date": date,
         "thumb": copied[0] if copied else "",
         "category": category,
+        "region": region,
     })
     gen.save_manifest(items)
 
