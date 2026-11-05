@@ -153,6 +153,29 @@ def collect_real_photos(job, experiment_root):
     return photos
 
 
+def find_useful_topic_folder(no, topic, experiment_root):
+    """「お役立ちコラム_投稿用」配下の、お題キューの行(No./お題)に対応するフォルダを探す。"""
+    if not experiment_root or not os.path.isdir(experiment_root):
+        return None
+    base = os.path.join(experiment_root, "お役立ちコラム_投稿用")
+    folder_name = f"{str(no).zfill(2)}_{topic}"
+    path = os.path.join(base, folder_name)
+    return path if os.path.isdir(path) else None
+
+
+def collect_useful_photos(no, topic, experiment_root):
+    """お題フォルダ配下の画像ファイルを全て集める(collect_real_photosのお役立ち版)。"""
+    folder = find_useful_topic_folder(no, topic, experiment_root)
+    if not folder:
+        return []
+    photos = []
+    for root, dirs, files in os.walk(folder):
+        for fn in sorted(files):
+            if fn.lower().endswith((".jpg", ".jpeg", ".png")):
+                photos.append(os.path.join(root, fn))
+    return photos
+
+
 def clean_and_copy_photo(src, dst):
     """Exif(位置情報含む)を一切付与せずJPEGとして書き出す。"""
     from PIL import Image
