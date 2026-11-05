@@ -20,6 +20,10 @@ BLOG_DIR = os.path.join(REPO, "blog")
 IMAGES_DIR = os.path.join(BLOG_DIR, "images")
 MANIFEST = os.path.join(BLOG_DIR, "articles.json")
 
+USEFUL_DIR = os.path.join(REPO, "useful")
+USEFUL_IMAGES_DIR = os.path.join(USEFUL_DIR, "images")
+USEFUL_MANIFEST = os.path.join(USEFUL_DIR, "articles.json")
+
 
 def load_manifest():
     if os.path.exists(MANIFEST):
@@ -30,6 +34,19 @@ def load_manifest():
 
 def save_manifest(items):
     with open(MANIFEST, "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
+
+
+def load_useful_manifest():
+    if os.path.exists(USEFUL_MANIFEST):
+        with open(USEFUL_MANIFEST, encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+
+def save_useful_manifest(items):
+    os.makedirs(USEFUL_DIR, exist_ok=True)
+    with open(USEFUL_MANIFEST, "w", encoding="utf-8") as f:
         json.dump(items, f, ensure_ascii=False, indent=2)
 
 
@@ -150,9 +167,11 @@ def clean_and_copy_photo(src, dst):
     img.save(dst, "JPEG", quality=92, exif=b"")
 
 
-def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, city_caption, category="施工事例"):
-    nav_header = NAV_HEADER
+def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, city_caption, category="施工事例", section="blog"):
+    nav_header = build_nav_header(section)
     footer = FOOTER
+    crumb_label = "ブログ" if section == "blog" else "お役立ち"
+    back_link_text = "ブログ一覧へ戻る" if section == "blog" else "お役立ち一覧へ戻る"
     alt_text = "施工の様子" if category == "施工事例" else f"{category}の様子"
     imgs_html = ""
     for img in image_files:
@@ -160,7 +179,21 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
             f'<div class="ph-slot" style="position: static; aspect-ratio: 4 / 3; border-radius: var(--radius-md); overflow: hidden;">'
             f'<img src="images/{html.escape(img)}" alt="{html.escape(alt_text)}" style="width:100%;height:100%;object-fit:cover;display:block;"></div>\n        '
         )
-    body_html = "\n        ".join(f"<p style=\"margin:0 0 1.4em; line-height:2;\">{html.escape(p)}</p>" for p in body_paragraphs)
+    body_parts = []
+    for p in body_paragraphs:
+        if p.startswith("## "):
+            body_parts.append(
+                f"<h2 style=\"margin:1.8em 0 0.8em; font-size:20px; letter-spacing:0.04em; "
+                f"border-left:4px solid var(--color-accent); padding-left:12px;\">{html.escape(p[3:])}</h2>"
+            )
+        elif p.startswith("### "):
+            body_parts.append(
+                f"<h3 style=\"margin:1.4em 0 0.6em; font-size:16px; letter-spacing:0.03em; "
+                f"color: var(--color-neutral-700);\">{html.escape(p[4:])}</h3>"
+            )
+        else:
+            body_parts.append(f"<p style=\"margin:0 0 1.4em; line-height:2;\">{html.escape(p)}</p>")
+    body_html = "\n        ".join(body_parts)
     caption_html = ""
     if city_caption:
         caption_html = f'<p style="margin: 0 0 24px; font-size: 13px; letter-spacing: 0.08em; color: var(--color-neutral-600);">{html.escape(city_caption)}</p>'
@@ -194,7 +227,7 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
 <div style="background: var(--color-bg); color: var(--color-text); min-height: 100%;">
 {nav_header}
   <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 760px; margin: 0 auto;">
-    <p style="margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; color: var(--color-neutral-600);"><a href="index.html" style="color: var(--color-neutral-600);">ブログ</a> / {html.escape(category)}</p>
+    <p style="margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; color: var(--color-neutral-600);"><a href="index.html" style="color: var(--color-neutral-600);">{crumb_label}</a> / {html.escape(category)}</p>
     <h1 style="font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.06em; margin: 0 0 24px;">{html.escape(title)}</h1>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 190px)); gap: 12px; margin-bottom: 12px; justify-content: start;">
         {imgs_html}
@@ -206,7 +239,7 @@ def build_article_html(job, memo_sentence, image_files, title, body_paragraphs, 
   <section style="padding: clamp(32px, 5vw, 64px) clamp(20px, 5vw, 64px); border-top: 1px solid var(--color-divider); display: grid; justify-items: center; gap: 20px; text-align: center;">
     <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
       <a class="btn btn-primary" href="../index.html#contact">お問合せ・お見積もり</a>
-      <a class="btn btn-secondary" href="index.html">ブログ一覧へ戻る</a>
+      <a class="btn btn-secondary" href="index.html">{back_link_text}</a>
     </div>
   </section>
 {footer}
@@ -291,7 +324,7 @@ def build_index_html(items):
 </head>
 <body>
 <div style="background: var(--color-bg); color: var(--color-text); min-height: 100%;">
-{NAV_HEADER}
+{build_nav_header('blog')}
   <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 1000px; margin: 0 auto;">
     <h1 style="font-size: clamp(26px, 3.8vw, 38px); letter-spacing: 0.1em; margin: 0 0 28px;">施工ブログ</h1>
     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:{region_row_margin};">
@@ -335,16 +368,125 @@ function filterBlog(btn, group, value) {{
 """
 
 
-NAV_HEADER = """  <header style="position: sticky; top: 0; z-index: 20; background: var(--color-bg); border-bottom: 1px solid var(--color-divider); padding: 18px clamp(16px, 4vw, 56px) 10px;">
+def build_useful_index_html(items):
+    cards = ""
+    for item in sorted(items, key=lambda x: x["date"], reverse=True):
+        tag = item.get("category") or "お役立ち"
+        cards += (
+            '<a href="{slug}.html" data-category="{tag_attr}" class="useful-card" '
+            'style="display:block; text-decoration:none; color:var(--color-text); '
+            'border:1px solid var(--color-divider); border-radius:var(--radius-md); overflow:hidden;">'
+            '<div class="ph-slot" style="position:static; aspect-ratio:16/10;"><img src="images/{thumb}" alt="" '
+            'style="width:100%;height:100%;object-fit:cover;display:block;"></div>'
+            '<div style="padding:14px 16px;">'
+            '<p style="margin:0 0 6px; font-size:11px; letter-spacing:0.08em; color:var(--color-accent-700);">{tag}</p>'
+            '<p style="margin:0 0 6px; font-size:11.5px; letter-spacing:0.08em; color:var(--color-neutral-600);">{date}</p>'
+            '<p style="margin:0; font-size:15px; letter-spacing:0.04em;">{title}</p>'
+            '</div></a>\n        '
+        ).format(
+            slug=item["slug"], thumb=item["thumb"], date=item["date"],
+            title=html.escape(item["title"]), tag=html.escape(tag), tag_attr=html.escape(tag),
+        )
+
+    tags = sorted({item.get("category") for item in items if item.get("category")})
+    filter_buttons = '<button type="button" class="useful-filter-btn is-active" data-filter="all" onclick="filterUseful(this, \'all\')" style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:var(--color-accent); color:#fff; font-size:13px; cursor:pointer;">すべて</button>\n        '
+    for tag in tags:
+        filter_buttons += (
+            '<button type="button" class="useful-filter-btn" data-filter="{tag}" onclick="filterUseful(this, \'{tag}\')" '
+            'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{tag}</button>\n        '
+        ).format(tag=html.escape(tag))
+
+    return f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>お役立ち｜大嶋塗装株式会社</title>
+<meta name="description" content="大嶋塗装株式会社がお届けする、外壁塗装や住まいのメンテナンスに関するお役立ち情報です。">
+<link rel="stylesheet" href="../assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {{
+    --font-heading: "Cormorant Garamond", "Shippori Mincho B1", serif;
+    --font-body: "Lora", "Shippori Mincho B1", serif;
+  }}
+  body {{ margin: 0; -webkit-font-smoothing: antialiased; }}
+  a {{ color: var(--color-accent-700); }}
+  a:hover {{ color: var(--color-accent); }}
+  h1, h2, h3, h4 {{ font-weight: 400; }}
+</style>
+</head>
+<body>
+<div style="background: var(--color-bg); color: var(--color-text); min-height: 100%;">
+{build_nav_header('useful')}
+  <section style="padding: clamp(36px, 5vw, 64px) clamp(20px, 5vw, 64px) clamp(16px, 3vw, 32px); max-width: 1000px; margin: 0 auto;">
+    <h1 style="font-size: clamp(26px, 3.8vw, 38px); letter-spacing: 0.1em; margin: 0 0 12px;">お役立ち</h1>
+    <p style="margin: 0 0 28px; color: var(--color-neutral-700); line-height: 1.9;">外壁塗装や住まいのメンテナンスに関する、ちょっとしたお役立ち情報をお届けします。</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px;">
+        {filter_buttons}
+    </div>
+    <div id="useful-card-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:20px;">
+        {cards if cards else '<p>まだ記事がありません。</p>'}
+    </div>
+    <p id="useful-empty-msg" style="display:none; color:var(--color-neutral-600); margin-top:20px;">このカテゴリの記事はまだありません。</p>
+  </section>
+{FOOTER}
+<script>
+function filterUseful(btn, value) {{
+  document.querySelectorAll('.useful-filter-btn').forEach(function(b) {{
+    b.classList.remove('is-active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--color-text)';
+  }});
+  btn.classList.add('is-active');
+  btn.style.background = 'var(--color-accent)';
+  btn.style.color = '#fff';
+  var any = false;
+  document.querySelectorAll('.useful-card').forEach(function(card) {{
+    var show = (value === 'all' || card.getAttribute('data-category') === value);
+    card.style.display = show ? '' : 'none';
+    if (show) any = true;
+  }});
+  document.getElementById('useful-empty-msg').style.display = any ? 'none' : 'block';
+}}
+</script>
+</div>
+<script src="../assets/site.js"></script>
+</body>
+</html>
+"""
+
+
+def build_nav_header(active="blog"):
+    """blog/ 配下とuseful/ 配下、どちらもルートから1階層下にあるので相対パスは共通。
+    active には "blog" か "useful" を渡す(どちらのナビ項目をハイライトするか)。"""
+    def item(href, label, key):
+        is_active = (key == active)
+        color = "var(--color-accent)" if is_active else "var(--color-text)"
+        current = ' aria-current="page"' if is_active else ""
+        return (
+            f'<a href="{href}"{current} style="display: grid; justify-items: center; gap: 8px; '
+            f'text-decoration: none; color: {color}; padding: 6px 10px;">{label}</a>'
+        )
+
+    blog_href = "index.html" if active == "blog" else "../blog/index.html"
+    useful_href = "index.html" if active == "useful" else "../useful/index.html"
+
+    nav_items = "\n        ".join([
+        item("../index.html#top", "ホーム", "home"),
+        item("../works.html", "施工実績", "works"),
+        item(blog_href, "ブログ", "blog"),
+        item(useful_href, "お役立ち", "useful"),
+        item("../contact.html", "お問合せ", "contact"),
+    ])
+
+    return f"""  <header style="position: sticky; top: 0; z-index: 20; background: var(--color-bg); border-bottom: 1px solid var(--color-divider); padding: 18px clamp(16px, 4vw, 56px) 10px;">
     <a href="../index.html#top" style="display: grid; justify-items: center; gap: 4px; text-decoration: none; color: var(--color-text); margin-bottom: 14px;">
       <span style="font-family: var(--font-heading); font-size: clamp(22px, 3.2vw, 32px); letter-spacing: 0.14em;">大嶋塗装株式会社</span>
       <span style="font-size: 10px; letter-spacing: 0.2em; color: var(--color-neutral-600); text-transform: uppercase; text-align: center;">Oshima Tosou Co., Ltd. — Since 1977</span>
     </a>
     <nav style="display: flex; justify-content: center; flex-wrap: wrap; gap: clamp(4px, 1.6vw, 22px);">
-        <a href="../index.html#top" style="display: grid; justify-items: center; gap: 8px; text-decoration: none; color: var(--color-text); padding: 6px 10px;">ホーム</a>
-        <a href="../works.html" style="display: grid; justify-items: center; gap: 8px; text-decoration: none; color: var(--color-text); padding: 6px 10px;">施工実績</a>
-        <a href="index.html" aria-current="page" style="display: grid; justify-items: center; gap: 8px; text-decoration: none; color: var(--color-accent); padding: 6px 10px;">ブログ</a>
-        <a href="../contact.html" style="display: grid; justify-items: center; gap: 8px; text-decoration: none; color: var(--color-text); padding: 6px 10px;">お問合せ</a>
+        {nav_items}
     </nav>
   </header>"""
 
