@@ -99,6 +99,15 @@ def format_date_jp(date_str):
     return f"{y}年{int(mo)}月{int(d)}日"
 
 
+def format_month_jp(yyyy_mm):
+    """'2026-11' のような年月を '2026年11月' に整える。"""
+    m = re.match(r"^(\d{4})-(\d{1,2})$", (yyyy_mm or "").strip())
+    if not m:
+        return yyyy_mm
+    y, mo = m.groups()
+    return f"{y}年{int(mo)}月"
+
+
 def build_body_paragraphs(job, memo):
     """案件データから、親しみやすいブログ口調の本文を組み立てる(テンプレートベースの自動生成)。"""
     work = job.get("work") or "塗装工事"
@@ -281,8 +290,10 @@ def build_index_html(items):
     for item in sorted(items, key=lambda x: x["date"], reverse=True):
         category = item.get("category") or "施工事例"
         region = item.get("region") or ""
+        month = (item.get("date") or "")[:7]
         cards += (
-            '<a href="{slug}.html" data-category="{category_attr}" data-region="{region_attr}" class="blog-card" '
+            '<a href="{slug}.html" data-category="{category_attr}" data-region="{region_attr}" '
+            'data-month="{month_attr}" class="blog-card" '
             'style="display:block; text-decoration:none; color:var(--color-text); '
             'border:1px solid var(--color-divider); border-radius:var(--radius-md); overflow:hidden;">'
             '<div class="ph-slot" style="position:static; aspect-ratio:16/10;"><img src="images/{thumb}" alt="" '
@@ -296,6 +307,7 @@ def build_index_html(items):
             slug=item["slug"], thumb=item["thumb"], date=item["date"],
             title=html.escape(item["title"]), category=html.escape(category),
             category_attr=html.escape(category), region_attr=html.escape(region),
+            month_attr=html.escape(month),
         )
 
     filter_buttons = '<button type="button" class="blog-filter-btn is-active" data-filter="all" onclick="filterBlog(this, \'category\', \'all\')" style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:var(--color-accent); color:#fff; font-size:13px; cursor:pointer;">\u3059\u3079\u3066</button>\n        '
@@ -320,10 +332,28 @@ def build_index_html(items):
             f'{region_buttons}'
             '</div>'
         )
-        region_row_margin = "12px"
     else:
         region_row = ""
-        region_row_margin = "24px"
+
+    months = sorted({(item.get("date") or "")[:7] for item in items if item.get("date")}, reverse=True)
+    archive_buttons = ""
+    for month in months:
+        archive_buttons += (
+            '<button type="button" class="blog-filter-btn" data-filter-month="{month}" onclick="filterBlog(this, \'month\', \'{month}\')" '
+            'style="padding:8px 16px; border-radius:999px; border:1px solid var(--color-divider); background:transparent; color:var(--color-text); font-size:13px; cursor:pointer;">{label}</button>\n        '
+        ).format(month=html.escape(month), label=html.escape(format_month_jp(month)))
+
+    if archive_buttons:
+        archive_row = (
+            '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:24px;">'
+            '<span style="font-size:12px; color:var(--color-neutral-600); letter-spacing:0.08em;">アーカイブ：</span>'
+            f'{archive_buttons}'
+            '</div>'
+        )
+    else:
+        archive_row = ""
+
+    region_row_margin = "12px" if (region_row or archive_row) else "24px"
 
     return f"""<!DOCTYPE html>
 <html lang="ja">
@@ -354,6 +384,7 @@ def build_index_html(items):
         {filter_buttons}
     </div>
     {region_row}
+    {archive_row}
     <div id="blog-card-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:20px;">
         {cards if cards else '<p>まだ記事がありません。</p>'}
     </div>
@@ -375,8 +406,10 @@ function filterBlog(btn, group, value) {{
     var show;
     if (group === 'category') {{
       show = (value === 'all' || card.getAttribute('data-category') === value);
-    }} else {{
+    }} else if (group === 'region') {{
       show = (card.getAttribute('data-region') === value);
+    }} else {{
+      show = (card.getAttribute('data-month') === value);
     }}
     card.style.display = show ? '' : 'none';
     if (show) any = true;
