@@ -51,20 +51,31 @@ def save_useful_manifest(items):
 
 
 def redact(text, job):
-    """お客様名・住所の断片が混入していたら伏字にする。何を伏せたか返す。"""
+    """お客様名・住所の断片が混入していたら伏字にする。何を伏せたか返す。
+
+    last/first/banchiのいずれかが空(苗字・名前が分からない場合。例えば
+    rewrite_old_articles.pyのように、個人情報を保存していない公開済み記事
+    から再構成したjob dictを扱うとき)は、1文字や空白1つのような意味のない
+    パターンが生まれて無関係な単語(「様子」「ご予約」等)を誤って伏字にして
+    しまうため、氏名・住所のパターン自体を作らない。"""
     if not text:
         return text, []
     redactions = []
-    full_name_variants = [
-        f"{job['last']}{job['first']}",
-        f"{job['last']} {job['first']}",
-        f"{job['last']}様{job['first']}",
-    ]
-    addr = f"{job['city']}{job['banchi']}"
-    patterns = set(full_name_variants + ([addr] if job.get("banchi") else []))
+    last = job.get("last") or ""
+    first = job.get("first") or ""
+    banchi = job.get("banchi") or ""
+    full_name_variants = []
+    if last and first:
+        full_name_variants = [
+            f"{last}{first}",
+            f"{last} {first}",
+            f"{last}様{first}",
+        ]
+    addr = f"{job['city']}{banchi}"
+    patterns = set(full_name_variants + ([addr] if banchi else []))
     out = text
     for p in patterns:
-        if p and p in out:
+        if p and len(p) >= 2 and p in out:
             out = out.replace(p, "〇" * len(p))
             redactions.append(p)
     return out, redactions
