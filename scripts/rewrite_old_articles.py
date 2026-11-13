@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-公開から一定期間(既定21日)経った「施工事例」記事を、現在の本文生成ロジック
+公開から一定期間(既定14日)経った「施工事例」記事を、現在の本文生成ロジック
 (generate_blog_article.build_body_paragraphs/build_article_html)で書き直した
 「下書き」を作成するスクリプト。
 
@@ -20,7 +20,7 @@ city/work/start/end/staff/memoを正規表現で読み取って job dict を復�
 氏名・番地(last/first/banchi)は本文に含まれないため復元不要(空文字のまま)。
 
 使い方:
-  python3 rewrite_old_articles.py [--min-days 21] [--state ~/.blog_rewrite_state.json] [--notify-cooldown-days 5]
+  python3 rewrite_old_articles.py [--min-days 14] [--state ~/.blog_rewrite_state.json] [--notify-cooldown-days 5]
 """
 import argparse
 import datetime
@@ -115,7 +115,7 @@ def save_state(state_path, state):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--min-days", type=int, default=21)
+    ap.add_argument("--min-days", type=int, default=14)
     ap.add_argument("--state", default=os.path.expanduser("~/.blog_rewrite_state.json"))
     ap.add_argument("--notify-cooldown-days", type=int, default=5)
     args = ap.parse_args()
